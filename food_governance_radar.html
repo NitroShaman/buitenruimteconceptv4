@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duurzame Kantine — Spinnenwebdiagram</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #111210;
+    color: #f0ece3;
+    min-height: 100vh;
+    padding: 36px 24px;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  header { margin-bottom: 32px; }
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: #f0ece3;
+    margin-bottom: 5px;
+    letter-spacing: -0.02em;
+  }
+  header p { font-size: 0.85rem; color: #666; line-height: 1.6; max-width: 480px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* RADAR CARD */
+  .radar-card {
+    background: #181815;
+    border: 1px solid #272722;
+    border-radius: 20px;
+    padding: 28px;
+  }
+
+  svg#radar { width: 100%; height: auto; display: block; }
+
+  /* SIDE PANEL */
+  .side-panel { display: flex; flex-direction: column; gap: 14px; }
+
+  /* MENU OPTIONS */
+  .menu-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .menu-item {
+    background: #181815;
+    border: 1.5px solid #272722;
+    border-radius: 14px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .menu-item:hover { border-color: #444; }
+  .menu-item.active { border-color: var(--c); background: #1e1e1b; }
+  .menu-item .m-emoji { font-size: 1.4rem; flex-shrink: 0; }
+  .menu-item .m-info { flex: 1; }
+  .menu-item .m-name { font-size: 0.82rem; font-weight: 600; color: #f0ece3; margin-bottom: 1px; }
+  .menu-item .m-avg { font-size: 0.7rem; color: #666; }
+  .menu-item .m-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .menu-item.active .m-dot { opacity: 1; }
+
+  /* SCORE BREAKDOWN */
+  .breakdown-card {
+    background: #181815;
+    border: 1px solid #272722;
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .breakdown-title {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #555;
+    margin-bottom: 14px;
+  }
+  .breakdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+    gap: 8px;
+  }
+  .breakdown-label {
+    font-size: 0.73rem;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 96px;
+  }
+  .bdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .breakdown-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #f0ece3;
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* COMPARE TOGGLE */
+  .compare-toggle {
+    background: #181815;
+    border: 1px solid #272722;
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .compare-toggle p {
+    font-size: 0.72rem;
+    color: #555;
+    margin-bottom: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .toggle-row { display: flex; flex-direction: column; gap: 6px; }
+  .overlay-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.75rem; color: #888; cursor: pointer;
+  }
+  .overlay-item input[type=checkbox] { accent-color: #b5f0a5; width: 14px; height: 14px; cursor: pointer; }
+  .overlay-item label { cursor: pointer; }
+  .overlay-item .ov-emoji { font-size: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Duurzame Kantinekeuzes</h1>
+    <p>Selecteer een gerecht om het spinnenwebdiagram te bekijken. Vink meerdere opties aan om ze te vergelijken.</p>
+  </header>
+
+  <div class="layout">
+    <div class="radar-card">
+      <svg id="radar" viewBox="0 0 420 400" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="side-panel">
+      <div class="menu-list" id="menuList"></div>
+      <div class="breakdown-card" id="breakdown"></div>
+      <div class="compare-toggle" id="compareToggle"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const themes = [
+  { key: 'health', label: 'Gezondheid',     color: '#52b788' },
+  { key: 'afford', label: 'Betaalbaarheid', color: '#f4a261' },
+  { key: 'inclus', label: 'Inclusiviteit',  color: '#e76f51' },
+  { key: 'bio',    label: 'Biodiversiteit', color: '#2d6a4f' },
+  { key: 'emiss',  label: 'Lage uitstoot',  color: '#74c69d' },
+];
+
+const options = [
+  { name: 'Seizoensalade',  emoji: '🥗', color: '#52b788', health: 88, afford: 72, inclus: 90, bio: 85, emiss: 92 },
+  { name: 'Kipfilet + rijst', emoji: '🍗', color: '#f4a261', health: 80, afford: 68, inclus: 55, bio: 52, emiss: 55 },
+  { name: 'Vegan burger',   emoji: '🍔', color: '#e76f51', health: 70, afford: 60, inclus: 95, bio: 78, emiss: 80 },
+  { name: 'Linzensoep',     emoji: '🍲', color: '#d4b483', health: 82, afford: 90, inclus: 82, bio: 80, emiss: 88 },
+  { name: 'Zalm + groente', emoji: '🐟', color: '#74b8c6', health: 92, afford: 48, inclus: 60, bio: 45, emiss: 50 },
+];
+
+let activeIdx = 0;
+let overlays = new Set();
+
+const CX = 210, CY = 200, R = 160;
+const N = themes.length;
+
+function angle(i) {
+  return (Math.PI * 2 * i / N) - Math.PI / 2;
+}
+
+function point(score, i) {
+  const r = (score / 100) * R;
+  const a = angle(i);
+  return [CX + r * Math.cos(a), CY + r * Math.sin(a)];
+}
+
+function outerPoint(i, radius) {
+  const a = angle(i);
+  return [CX + radius * Math.cos(a), CY + radius * Math.sin(a)];
+}
+
+function polygonPath(scores) {
+  return scores.map((s, i) => point(s, i)).map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' ') + ' Z';
+}
+
+function renderRadar() {
+  const svg = document.getElementById('radar');
+  svg.innerHTML = '';
+
+  // Background grid rings
+  [20, 40, 60, 80, 100].forEach(level => {
+    const pts = themes.map((_, i) => outerPoint(i, (level / 100) * R));
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    path.setAttribute('points', pts.map(p => p.join(',')).join(' '));
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#2a2a26');
+    path.setAttribute('stroke-width', '1');
+    svg.appendChild(path);
+
+    // ring label
+    if (level % 40 === 0 && level > 0) {
+      const lp = outerPoint(0, (level / 100) * R);
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', lp[0] + 4);
+      text.setAttribute('y', lp[1] - 4);
+      text.setAttribute('fill', '#444');
+      text.setAttribute('font-size', '9');
+      text.setAttribute('font-family', 'Inter');
+      text.textContent = level;
+      svg.appendChild(text);
+    }
+  });
+
+  // Axis lines + labels
+  themes.forEach((t, i) => {
+    const [x2, y2] = outerPoint(i, R);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', CX); line.setAttribute('y1', CY);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', '#2e2e28'); line.setAttribute('stroke-width', '1');
+    svg.appendChild(line);
+
+    // label
+    const [lx, ly] = outerPoint(i, R + 22);
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', lx);
+    text.setAttribute('y', ly + 4);
+    text.setAttribute('fill', '#888');
+    text.setAttribute('font-size', '11');
+    text.setAttribute('font-weight', '500');
+    text.setAttribute('font-family', 'Inter');
+    text.setAttribute('text-anchor', 'middle');
+    text.textContent = t.label;
+    svg.appendChild(text);
+  });
+
+  // Overlay shapes (comparison, drawn first so they're behind)
+  overlays.forEach(idx => {
+    if (idx === activeIdx) return;
+    const opt = options[idx];
+    const scores = themes.map(t => opt[t.key]);
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', polygonPath(scores));
+    path.setAttribute('fill', opt.color);
+    path.setAttribute('fill-opacity', '0.08');
+    path.setAttribute('stroke', opt.color);
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('stroke-opacity', '0.4');
+    path.setAttribute('stroke-dasharray', '4 3');
+    svg.appendChild(path);
+  });
+
+  // Main shape
+  const opt = options[activeIdx];
+  const scores = themes.map(t => opt[t.key]);
+  const mainPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  mainPath.setAttribute('d', polygonPath(scores));
+  mainPath.setAttribute('fill', opt.color);
+  mainPath.setAttribute('fill-opacity', '0.18');
+  mainPath.setAttribute('stroke', opt.color);
+  mainPath.setAttribute('stroke-width', '2.5');
+  svg.appendChild(mainPath);
+
+  // Dots on main shape
+  scores.forEach((s, i) => {
+    const [px, py] = point(s, i);
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', px); circle.setAttribute('cy', py);
+    circle.setAttribute('r', '4');
+    circle.setAttribute('fill', opt.color);
+    circle.setAttribute('stroke', '#111210');
+    circle.setAttribute('stroke-width', '1.5');
+    svg.appendChild(circle);
+  });
+}
+
+function avg(opt) {
+  return Math.round(themes.reduce((s, t) => s + opt[t.key], 0) / themes.length);
+}
+
+function renderMenu() {
+  document.getElementById('menuList').innerHTML = options.map((opt, i) =>
+    `<div class="menu-item ${i === activeIdx ? 'active' : ''}" style="--c:${opt.color}" onclick="setActive(${i})">
+      <span class="m-emoji">${opt.emoji}</span>
+      <div class="m-info">
+        <div class="m-name">${opt.name}</div>
+        <div class="m-avg">gem. ${avg(opt)}/100</div>
+      </div>
+      <div class="m-dot" style="background:${opt.color}"></div>
+    </div>`
+  ).join('');
+}
+
+function renderBreakdown() {
+  const opt = options[activeIdx];
+  document.getElementById('breakdown').innerHTML =
+    `<div class="breakdown-title">${opt.emoji} ${opt.name}</div>` +
+    themes.map(t =>
+      `<div class="breakdown-row">
+        <div class="breakdown-label"><div class="bdot" style="background:${t.color}"></div>${t.label}</div>
+        <div class="breakdown-val" style="color:${t.color}">${opt[t.key]}</div>
+      </div>`
+    ).join('') +
+    `<div style="border-top:1px solid #272722; margin:10px 0 8px;"></div>
+     <div class="breakdown-row">
+       <div class="breakdown-label" style="color:#aaa; font-weight:600">Gemiddeld</div>
+       <div class="breakdown-val" style="color:#f0ece3">${avg(opt)}</div>
+     </div>`;
+}
+
+function renderCompareToggle() {
+  document.getElementById('compareToggle').innerHTML =
+    `<p>Vergelijken</p>
+    <div class="toggle-row">` +
+    options.map((opt, i) =>
+      `<label class="overlay-item">
+        <input type="checkbox" ${overlays.has(i) ? 'checked' : ''} onchange="toggleOverlay(${i}, this.checked)">
+        <span class="ov-emoji">${opt.emoji}</span>
+        <label style="color:${overlays.has(i) ? opt.color : '#888'}">${opt.name}</label>
+      </label>`
+    ).join('') +
+    `</div>`;
+}
+
+function setActive(i) {
+  activeIdx = i;
+  renderAll();
+}
+
+function toggleOverlay(i, checked) {
+  if (checked) overlays.add(i); else overlays.delete(i);
+  renderAll();
+}
+
+function renderAll() {
+  renderRadar();
+  renderMenu();
+  renderBreakdown();
+  renderCompareToggle();
+}
+
+renderAll();
+</script>
+</body>
+</html>
